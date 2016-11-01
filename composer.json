@@ -1,0 +1,38 @@
+{
+    "name": "veridu/idos-metrics",
+    "description": "Veridu idOS Metrics",
+    "license": "proprietary",
+    "type": "project",
+    "keywords": [],
+    "authors": [
+        {
+            "name": "Flavio Heleno",
+            "email": "flavio@veridu.com"
+        },
+        {
+            "name": "Rafael Andreatta",
+            "email": "andreatta@veridu.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "app",
+            "Cli\\": "cli",
+            "Common\\": "common",
+            "Test\\": "test"
+        }
+    },
+    "require": {
+        "illuminate/database": "5.*",
+        "monolog/monolog": "^1.13",
+        "symfony/console": "^3.1"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "@stable",
+        "phploc/phploc": "@stable",
+        "phpmd/phpmd" : "@stable"
+    },
+    "config": {
+        "optimize-autoloader": false
+    }
+}
