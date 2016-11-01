@@ -11,27 +11,112 @@ use Illuminate\Database\Connection as DbConnection;
  */
 class Metrics
 {
+    /**
+     * Metrics endpoint list.
+     *
+     * @var array
+     */
     private $endpoints = [
-        'company'            => 'company_metrics',
-        'company:credential' => 'credential_metrics',
-        'company:hook'       => 'hook_metrics',
-        'company:invitation' => 'invitation_metrics',
-        'company:member'     => 'member_metrics',
-        'company:permission' => 'permission_metrics',
-        'company:setting'    => 'setting_metrics',
-        'profile:attribute'  => 'attribute_metrics',
-        'profile:candidate'  => 'candidate_metrics',
-        'profile:feature'    => 'feature_metrics',
-        'profile:flag'       => 'flag_metrics',
-        'profile:gate'       => 'gate_metrics',
-        'profile:process'    => 'process_metrics',
-        'profile:raw'        => 'raw_metrics',
-        'profile:reference'  => 'reference_metrics',
-        'profile:review'     => 'review_metrics',
-        'profile:score'      => 'score_metrics',
-        'profile:source'     => 'source_metrics',
-        'profile:tag'        => 'tag_metrics',
-        'profile:task'       => 'task_metrics'
+        'company' => [
+            'metricsTable' => 'company_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'company'
+        ],
+        'company:credential' => [
+            'metricsTable' => 'credential_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'credential'
+        ],
+        'company:hook' => [
+            'metricsTable' => 'hook_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'hook'
+        ],
+        'company:invitation' => [
+            'metricsTable' => 'invitation_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'invitation'
+        ],
+        'company:member' => [
+            'metricsTable' => 'member_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'member'
+        ],
+        'company:permission' => [
+            'metricsTable' => 'permission_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'permission'
+        ],
+        'company:setting' => [
+            'metricsTable' => 'setting_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'setting'
+        ],
+        'profile:attribute' => [
+            'metricsTable' => 'attribute_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'attribute'
+        ],
+        'profile:candidate' => [
+            'metricsTable' => 'candidate_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'candidate'
+        ],
+        'profile:feature' => [
+            'metricsTable' => 'feature_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'feature'
+        ],
+        'profile:flag' => [
+            'metricsTable' => 'flag_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'flag'
+        ],
+        'profile:gate' => [
+            'metricsTable' => 'gate_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'gate'
+        ],
+        'profile:process' => [
+            'metricsTable' => 'process_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'process'
+        ],
+        'profile:raw' => [
+            'metricsTable' => 'raw_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'raw'
+        ],
+        'profile:reference' => [
+            'metricsTable' => 'reference_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'reference'
+        ],
+        'profile:review' => [
+            'metricsTable' => 'review_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'review'
+        ],
+        'profile:score' => [
+            'metricsTable' => 'score_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'score'
+        ],
+        'profile:source' => [
+            'metricsTable' => 'source_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'source'
+        ],
+        'profile:tag' => [
+            'metricsTable' => 'tag_metrics',
+            'actor' => 'identity',
+            'idColumn'    => 'tag'
+        ],
+        'profile:task' => [
+            'metricsTable' => 'task_metrics',
+            'actor' => 'credential',
+            'idColumn'    => 'task'
+        ]
     ];
 
     /**
@@ -59,11 +144,14 @@ class Metrics
             return false;
         }
 
-        $table = $this->endpoints[$data['endpoint']];
+        $properties = $this->endpoints[$data['endpoint']];
+        $table = $properties['metricsTable'];
+        $actor = $properties['actor'];
+        $idColumn = $properties['idColumn'];
 
         return $this->dbConnection->table($table)->insert([
-            'actor_id' => $data['actor_id'],
-            'entity_id' => $data['entity_id'],
+            $actor . '_id' => $data[$actor . '_id'],
+            $idColumn . '_id' => $data[$idColumn . '_id'],
             'action' => $data['action'],
             'created_at' => date('Y-m-d H:i:s', $data['created_at'])
         ]);
@@ -78,9 +166,10 @@ class Metrics
      * @param string $fromTablePostfix
      */
     public function handleIntervalMetrics(int $seconds, string $toTablePostfix, string $fromTablePostfix = null) {
-        foreach ($this->endpoints as $endpoint => $table) {
-            $endpoint = 'profile:source';
-            $table = 'source_metrics';
+        foreach ($this->endpoints as $endpoint => $properties) {
+            $table = $properties['metricsTable'];
+            $actor = $properties['actor'];
+
             $metrics = $this
                 ->dbConnection
                 ->table($table . $fromTablePostfix)
@@ -94,7 +183,8 @@ class Metrics
             $lastInsertedTimestamp = [];
             $intervalMetrics = [];
             foreach ($metrics as $metric) {
-                $group = $metric->actor_id . '-' . $metric->action;
+                $actorColumn = $actor . '_id';
+                $group = $metric->$actorColumn . '-' . $metric->action;
                 $metric->created_at = ((int) (strtotime($metric->created_at) / $seconds)) * $seconds;
 
                 if (! isset($lastInsertedTimestamp[$group]) || $metric->created_at > ($lastInsertedTimestamp[$group] + $seconds - 1)) {
@@ -115,9 +205,10 @@ class Metrics
             foreach ($intervalMetrics as $group => $metrics) {
                 foreach ($metrics as $metric) {
                     $deleteIds[] = $metric->id;
+                    $idColumn = $properties['idColumn'] . '_id';
 
                     unset($metric->id);
-                    unset($metric->entity_id);
+                    unset($metric->$idColumn);
                     unset($metric->updated_at);
 
                     $metric->created_at = date('Y-m-d H:i:s', $metric->created_at);
