@@ -10,6 +10,7 @@ namespace Cli\Command;
 
 use Cli\Handler;
 use Cli\Utils\Logger;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -25,7 +26,12 @@ class Hourly extends AbstractCommand {
     protected function configure() {
         $this
             ->setName('cron:hourly')
-            ->setDescription('idOS Metrics - Hourly');
+            ->setDescription('idOS Metrics - Hourly')
+            ->addArgument(
+                'endpoint',
+                InputArgument::OPTIONAL,
+                'The endpoint name that we want to separate the metrics'
+            );
     }
 
     /**
@@ -38,11 +44,22 @@ class Hourly extends AbstractCommand {
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
         $logger = new Logger();
-
         $logger->debug('Initializing idOS Metrics Hourly');
+        $endpoint = $input->getArgument('endpoint');
 
         $handler = new Handler\Metrics($this->getDbConnection());
-        $handler->handleHourlyMetrics();
+        
+        if ($endpoint === null) {
+            $endpoints = [
+                'profile:source',
+                'profile:gate'
+            ];
+            foreach ($endpoints as $endpoint) {
+                $handler->handleHourlyMetrics($endpoint);
+            }
+        } else {
+            $handler->handleHourlyMetrics($endpoint);
+        }
 
         $logger->debug('Runner completed');
     }
