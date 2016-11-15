@@ -38,6 +38,15 @@ abstract class AbstractCommand extends Command {
     }
 
     /**
+     * Returns the salts.
+     *
+     * @return string
+     */
+    protected function getSaltConfig() {
+        return $this->config['salt'];
+    }
+
+    /**
      * Constructor.
      *
      * @param array $config

@@ -47,12 +47,11 @@ class Hourly extends AbstractCommand {
         $logger->debug('Initializing idOS Metrics Hourly');
         $endpoint = $input->getArgument('endpoint');
 
-        $handler = new Handler\Metrics($this->getDbConnection());
+        $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
         
         if ($endpoint === null) {
             $endpoints = [
-                'profile:source',
-                'profile:gate'
+                'profile:source'
             ];
             foreach ($endpoints as $endpoint) {
                 $handler->handleHourlyMetrics($endpoint);

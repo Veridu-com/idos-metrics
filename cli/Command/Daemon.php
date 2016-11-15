@@ -85,7 +85,7 @@ class Daemon extends AbstractCommand {
                     return;
                 }
 
-                $handler = new Handler\Metrics($this->getDbConnection());
+                $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
                 if (! $handler->handleNewMetric($jobData)) {
                     $logger->debug('There was an error handling the new metric.');
                     $job->sendComplete('invalid');
