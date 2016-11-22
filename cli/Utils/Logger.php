@@ -8,7 +8,6 @@ declare(strict_types = 1);
 
 namespace Cli\Utils;
 
-use Monolog\Handler\StreamHandler;
 use Monolog\Logger as Monolog;
 
 /**
@@ -25,14 +24,12 @@ class Logger {
     /**
      * Class constructor.
      *
-     * @param string $stream
-     * @param int    $level
+     * @param \Monolog\Logger $logger
      *
      * @return void
      */
-    public function __construct(string $stream = 'php://stdout', int $level = Monolog::DEBUG) {
-        $this->logger = new Monolog('Metrics');
-        $this->logger->pushHandler(new StreamHandler($stream, $level));
+    public function __construct(Monolog $logger) {
+        $this->logger = $logger;
     }
 
     /**
