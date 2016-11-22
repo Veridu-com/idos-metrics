@@ -10,8 +10,11 @@ namespace Cli\Command;
 
 use Cli\Handler;
 use Cli\Utils\Logger;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger as Monolog;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -27,6 +30,12 @@ class Daemon extends AbstractCommand {
         $this
             ->setName('metrics:daemon')
             ->setDescription('idOS Metrics - Daemon')
+            ->addOption(
+                'logFile',
+                'l',
+                InputOption::VALUE_REQUIRED,
+                'Path to log file'
+            )
             ->addArgument(
                 'serverList',
                 InputArgument::REQUIRED | InputArgument::IS_ARRAY,
@@ -43,7 +52,10 @@ class Daemon extends AbstractCommand {
      * @return void
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
-        $logger = new Logger();
+        $logFile = $input->getOption('logFile') ?? 'php://stdout';
+        $monolog = new Monolog('Metrics');
+        $monolog->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
+        $logger  = new Logger($monolog);
 
         $logger->debug('Initializing idOS Metrics Daemon');
 

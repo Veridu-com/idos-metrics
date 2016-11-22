@@ -6,7 +6,15 @@
  */
 
 require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/environment.php';
+
+
+// Loads .env if available
+if (is_file(__DIR__ . '/.env')) {
+    $dotEnv = new Dotenv\Dotenv(__DIR__);
+    $dotEnv->load();
+}
+
+// Load application settings
 $config = require_once __DIR__ . '/config/settings.php';
 
 date_default_timezone_set('UTC');
