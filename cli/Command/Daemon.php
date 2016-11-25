@@ -31,10 +31,21 @@ class Daemon extends AbstractCommand {
             ->setName('metrics:daemon')
             ->setDescription('idOS Metrics - Daemon')
             ->addOption(
+                'devMode',
+                'd',
+                InputOption::VALUE_NONE,
+                'Development mode'
+            )
+            ->addOption(
                 'logFile',
                 'l',
                 InputOption::VALUE_REQUIRED,
                 'Path to log file'
+            )
+            ->addArgument(
+                'functionName',
+                InputArgument::REQUIRED,
+                'Gearman Worker Function name'
             )
             ->addArgument(
                 'serverList',
@@ -55,9 +66,23 @@ class Daemon extends AbstractCommand {
         $logFile = $input->getOption('logFile') ?? 'php://stdout';
         $monolog = new Monolog('Metrics');
         $monolog->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
-        $logger  = new Logger($monolog);
+        $logger = new Logger($monolog);
 
         $logger->debug('Initializing idOS Metrics Daemon');
+
+        // Development mode
+        $devMode = ! empty($input->getOption('devMode'));
+        if ($devMode) {
+            $logger->debug('Running in developer mode');
+            ini_set('display_errors', 'On');
+            error_reporting(-1);
+        }
+
+        // Gearman Worker function name setup
+        $functionName = $input->getArgument('functionName');
+        if ((empty($functionName)) || (! preg_match('/^[a-zA-Z0-9\._-]+$/', $functionName))) {
+            $functionName = 'idos-metrics';
+        }
 
         // Server List setup
         $servers = $input->getArgument('serverList');
@@ -81,45 +106,36 @@ class Daemon extends AbstractCommand {
         // 1 second I/O timeout
         $gearman->setTimeout(1000);
 
-        $logger->debug('Registering Worker Function "metrics"');
+        $logger->debug('Registering Worker Function', ['function' => $functionName]);
 
+        /*
+         * Payload content:
+         * FIXME
+         */
         $gearman->addFunction(
-            sprintf('idos-metrics-%s', str_replace('.', '', __VERSION__)),
+            $functionName,
             function (\GearmanJob $job) use ($logger) {
-                $time = microtime(true);
-
                 $logger->debug('Got a new job!');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
-                    $logger->debug('Invalid Job Workload!');
+                    $logger->warning('Invalid Job Workload!');
                     $job->sendComplete('invalid');
 
                     return;
                 }
+
+                $init = microtime(true);
 
                 $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
                 if (! $handler->handleNewMetric($jobData)) {
-                    $logger->debug('There was an error handling the new metric.');
+                    $logger->error('There was an error handling the new metric.');
                     $job->sendComplete('invalid');
 
                     return;
                 }
 
-                $time = microtime(true) - $time;
-                $logger->debug('Job done! (' . $time . ')');
+                $logger->info('Job completed', ['time' => microtime(true) - $init]);
                 $job->sendComplete('ok');
-            }
-        );
-
-        $logger->debug('Registering Ping Function "ping"');
-
-        // Register Thread's Ping Function
-        $gearman->addFunction(
-            'ping',
-            function (\GearmanJob $job) use ($logger) {
-                $logger->debug('Ping!');
-
-                return 'pong';
             }
         );
 
