@@ -12,7 +12,7 @@ use Illuminate\Database\Connection as DbConnection;
 class Metrics
 {
     /**
-     * The database connection/
+     * The database connection/.
      *
      * @var \Illuminate\Database\Connection
      */
@@ -28,50 +28,54 @@ class Metrics
      * Constructor.
      *
      * @param \Illuminate\Database\Connection $dbConnection
-     * @param array $saltConfig
+     * @param array                           $saltConfig
      */
     public function __construct(DbConnection $dbConnection, array $saltConfig) {
         $this->dbConnection = $dbConnection;
-        $this->saltConfig = $saltConfig;
+        $this->saltConfig   = $saltConfig;
     }
 
     /**
      * Handles the incoming event from the idOS API.
      *
      * @param array $payload
+     *
      * @return bool
      */
     public function handleNewMetric(array $payload) : bool {
-        $action = $payload['action'];
+        $action  = $payload['action'];
         $created = $payload['created'];
 
         switch ($payload['endpoint']) {
             case 'profile:source':
-                $userId = $payload['user_id'];
+                $userId     = $payload['user_id'];
                 $credential = $payload['credential'];
-                $source = $payload['source'];
-                $data = [
-                    'user_id' => $userId,
+                $source     = $payload['source'];
+                $data       = [
+                    'user_id'  => $userId,
                     'provider' => $source['name'],
-                    'sso' => (isset($source['tags']['sso']) && $source['tags']['sso'] === true) ? true : false
+                    'sso'      => (isset($source['tags']['sso']) && $source['tags']['sso'] === true) ? true : false
                 ];
 
                 $success = $this
-                            ->dbConnection
-                            ->transaction(function (DbConnection $dbConnection) use ($payload, $action, $created, $userId, $credential, $source, $data) {
-                                $success = $dbConnection
-                                    ->table('metrics')
-                                    ->insert([
-                                        'credential_public' => $credential['public'],
-                                        'endpoint'          => $payload['endpoint'],
-                                        'action'            => $action,
-                                        'data'              => json_encode($data),
-                                        'created_at'        => date('Y-m-d H:i:s', $created)
-                                    ]);
+                    ->dbConnection
+                    ->transaction(
+                        function (DbConnection $dbConnection) use ($payload, $action, $created, $userId, $credential, $source, $data) {
+                                    $success = $dbConnection
+                                        ->table('metrics')
+                                        ->insert(
+                                            [
+                                            'credential_public' => $credential['public'],
+                                            'endpoint'          => $payload['endpoint'],
+                                            'action'            => $action,
+                                            'data'              => json_encode($data),
+                                            'created_at'        => date('Y-m-d H:i:s', $created)
+                                            ]
+                                        );
 
-                                $success = $success && $dbConnection
-                                    ->statement(
-                                        'INSERT INTO metrics_user (
+                                    $success = $success && $dbConnection
+                                        ->statement(
+                                            'INSERT INTO metrics_user (
                                         hash,
                                         credential_public,
                                         sources,
@@ -92,7 +96,7 @@ class Metrics
                                     )
                                     ON CONFLICT (hash)
                                     DO UPDATE SET sources = jsonb_set(metrics_user.sources, :source, \'true\', true), updated_at = :updated_at',
-                                        [
+                                            [
                                             'hash'              => md5($this->saltConfig['user'] . (string) $userId),
                                             'credential_public' => $credential['public'],
                                             'sources'           => '{"' . $source['name'] . '": true}',
@@ -102,22 +106,23 @@ class Metrics
                                             'flags'             => '{}',
                                             'created_at'        => date('Y-m-d H:i:s', $created),
                                             'updated_at'        => date('Y-m-d H:i:s', $created)
-                                        ]
-                                    );
+                                            ]
+                                        );
 
-                                return $success;
-                            });
+                                    return $success;
+                        }
+                    );
                 break;
 
             case 'profile:gate':
-                $userId = $payload['user_id'];
+                $userId     = $payload['user_id'];
                 $credential = $payload['credential'];
-                $gate = $payload['gate'];
+                $gate       = $payload['gate'];
 
                 $success = $this
-                            ->dbConnection
-                            ->statement(
-                                'INSERT INTO metrics_user (
+                    ->dbConnection
+                    ->statement(
+                        'INSERT INTO metrics_user (
                                 hash,
                                 credential_public,
                                 sources,
@@ -138,30 +143,30 @@ class Metrics
                             )
                             ON CONFLICT (hash)
                             DO UPDATE SET gates = jsonb_set(metrics_user.gates, :gate, :pass, true), updated_at = :updated_at',
-                                [
+                        [
                                     'hash'              => md5($this->saltConfig['user'] . (string) $userId),
                                     'credential_public' => $credential['public'],
                                     'sources'           => '{}',
                                     'data'              => '{}',
-                                    'gates'             => '{"' . $gate['name'] . '.' . $gate['confidence_level'] .'": ' . ($gate['pass'] === true ? 'true' : 'false') . '}',
+                                    'gates'             => '{"' . $gate['name'] . '.' . $gate['confidence_level'] . '": ' . ($gate['pass'] === true ? 'true' : 'false') . '}',
                                     'flags'             => '{}',
                                     'gate'              => '{"' . $gate['name'] . '.' . $gate['confidence_level'] . '"}',
                                     'pass'              => ($gate['pass'] === true ? 'true' : 'false'),
                                     'created_at'        => date('Y-m-d H:i:s', $created),
                                     'updated_at'        => date('Y-m-d H:i:s', $created)
                                 ]
-                            );
+                    );
                 break;
 
             case 'profile:flag':
-                $userId = $payload['user_id'];
+                $userId     = $payload['user_id'];
                 $credential = $payload['credential'];
-                $flag = $payload['flag'];
+                $flag       = $payload['flag'];
 
                 $success = $this
-                            ->dbConnection
-                            ->statement(
-                                'INSERT INTO metrics_user (
+                    ->dbConnection
+                    ->statement(
+                        'INSERT INTO metrics_user (
                                 hash,
                                 credential_public,
                                 sources,
@@ -182,7 +187,7 @@ class Metrics
                             )
                             ON CONFLICT (hash)
                             DO UPDATE SET flags = jsonb_set(metrics_user.flags, :flag, :attribute, true), updated_at = :updated_at',
-                                [
+                        [
                                     'hash'              => md5($this->saltConfig['user'] . (string) $userId),
                                     'credential_public' => $credential['public'],
                                     'sources'           => '{}',
@@ -194,18 +199,18 @@ class Metrics
                                     'created_at'        => date('Y-m-d H:i:s', $created),
                                     'updated_at'        => date('Y-m-d H:i:s', $created)
                                 ]
-                            );
+                    );
                 break;
 
             case 'profile:attribute':
-                $userId = $payload['user_id'];
+                $userId     = $payload['user_id'];
                 $credential = $payload['credential'];
-                $attribute = $payload['attribute'];
+                $attribute  = $payload['attribute'];
 
                 $success = $this
-                            ->dbConnection
-                            ->statement(
-                                'INSERT INTO metrics_user (
+                    ->dbConnection
+                    ->statement(
+                        'INSERT INTO metrics_user (
                                 hash,
                                 credential_public,
                                 sources,
@@ -226,7 +231,7 @@ class Metrics
                             )
                             ON CONFLICT (hash)
                             DO UPDATE SET data = jsonb_set(metrics_user.data, :attribute, :attributeValue, true), updated_at = :updated_at',
-                                [
+                        [
                                     'hash'              => md5($this->saltConfig['user'] . (string) $userId),
                                     'credential_public' => $credential['public'],
                                     'sources'           => '{}',
@@ -238,7 +243,7 @@ class Metrics
                                     'created_at'        => date('Y-m-d H:i:s', $created),
                                     'updated_at'        => date('Y-m-d H:i:s', $created)
                                 ]
-                            );
+                    );
                 break;
 
             default:
@@ -249,7 +254,7 @@ class Metrics
     }
 
     /**
-     * Separate metrics
+     * Separate metrics.
      */
     public function handleHourlyMetrics($endpoint) {
         switch ($endpoint) {
@@ -285,7 +290,7 @@ class Metrics
     }
 
     /**
-     * Handles metrics that
+     * Handles metrics that.
      */
     public function handleDailyMetrics($endpoint) {
         switch ($endpoint) {

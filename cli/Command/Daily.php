@@ -48,7 +48,7 @@ class Daily extends AbstractCommand {
         $endpoint = $input->getArgument('endpoint');
 
         $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
-        
+
         if ($endpoint === null) {
             $endpoints = [
                 'profile:source'

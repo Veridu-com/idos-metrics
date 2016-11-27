@@ -49,13 +49,13 @@ abstract class AbstractCommand extends Command {
     /**
      * Constructor.
      *
-     * @param array $config
+     * @param array       $config
      * @param string|null $name
      */
     public function __construct(array $config, string $name = null) {
         parent::__construct($name);
 
-        $this->config = $config;
+        $this->config    = $config;
         $this->dbManager = new DatabaseManager();
         $this->dbManager->addConnection($this->config['db']);
     }
