@@ -3,9 +3,6 @@
 .php_cs
 .idea
 composer.lock
-config/settings.php
-config/testing.php
-environment.php
 phinx.yml
 phpunit.xml
 vendor/
