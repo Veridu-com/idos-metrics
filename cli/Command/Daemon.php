@@ -135,8 +135,7 @@ class Daemon extends AbstractCommand {
                 }
 
                 $jobCount++;
-                $lastJob = time();
-                $init    = microtime(true);
+                $init = microtime(true);
 
                 $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
                 if (! $handler->handleNewMetric($jobData)) {
@@ -148,6 +147,7 @@ class Daemon extends AbstractCommand {
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);
                 $job->sendComplete('ok');
+                $lastJob = time();
             }
         );
 
