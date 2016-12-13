@@ -148,10 +148,10 @@ class Metrics
                                     'credential_public' => $credential['public'],
                                     'sources'           => '{}',
                                     'data'              => '{}',
-                                    'gates'             => '{"' . $gate['name'] . '": ' . ($gate['confidence_level'] === null ? 'null' : ('"' . $gate['confidence_level'] . '"')) . '}',
+                                    'gates'             => '{"' . $gate['name'] . '": "' . $gate['confidence_level'] . '"}',
                                     'flags'             => '{}',
                                     'gate'              => '{"' . $gate['name'] . '"}',
-                                    'confidence_level'  => ($gate['confidence_level'] === null ? 'null' : ('"' . $gate['confidence_level'] . '"')),
+                                    'confidence_level'  => '"' . $gate['confidence_level'] . '"',
                                     'created_at'        => date('Y-m-d H:i:s', $created),
                                     'updated_at'        => date('Y-m-d H:i:s', $created)
                                 ]
