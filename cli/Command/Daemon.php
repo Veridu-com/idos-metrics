@@ -75,6 +75,8 @@ class Daemon extends AbstractCommand {
 
         $logger->debug('Initializing idOS Metrics Daemon');
 
+        $bootTime = time();
+
         // Development mode
         $devMode = ! empty($input->getOption('devMode'));
         if ($devMode) {
@@ -113,13 +115,16 @@ class Daemon extends AbstractCommand {
 
         $logger->debug('Registering Worker Function', ['function' => $functionName]);
 
+        $jobCount = 0;
+        $lastJob  = 0;
+
         /*
          * Payload content:
          * FIXME
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger) {
+            function (\GearmanJob $job) use ($logger, &$jobCount, &$lastJob) {
                 $logger->debug('Got a new job!');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -129,7 +134,9 @@ class Daemon extends AbstractCommand {
                     return;
                 }
 
-                $init = microtime(true);
+                $jobCount++;
+                $lastJob = time();
+                $init    = microtime(true);
 
                 $handler = new Handler\Metrics($this->getDbConnection(), $this->getSaltConfig());
                 if (! $handler->handleNewMetric($jobData)) {
@@ -168,7 +175,18 @@ class Daemon extends AbstractCommand {
                     // Job wait timeout, sleep before retry
                     sleep(1);
                     if (! @$gearman->echo('ping')) {
-                        $logger->debug('Invalid server state, restart');
+                        $logger->debug('Invalid server state, restarting');
+                        exit;
+                    }
+
+                    if (((time() - $bootTime) > 10) && ((time() - $lastJob) > 10)) {
+                        $logger->info(
+                            'Inactivity detected, restarting',
+                            [
+                                'runtime' => time() - $bootTime,
+                                'jobs' => $jobCount
+                            ]
+                        );
                         exit;
                     }
 
@@ -177,6 +195,6 @@ class Daemon extends AbstractCommand {
             }
         }
 
-        $logger->debug('Leaving Gearman Worker Loop');
+        $logger->debug('Leaving Gearman Worker Loop', ['runtime' => time() - $bootTime, 'jobs' => $jobCount]);
     }
 }
