@@ -142,16 +142,16 @@ class Metrics
                                 NULL
                             )
                             ON CONFLICT (hash)
-                            DO UPDATE SET gates = jsonb_set(metrics_user.gates, :gate, :pass, true), updated_at = :updated_at',
+                            DO UPDATE SET gates = jsonb_set(metrics_user.gates, :gate, :confidence_level, true), updated_at = :updated_at',
                         [
                                     'hash'              => md5($this->saltConfig['user'] . (string) $userId),
                                     'credential_public' => $credential['public'],
                                     'sources'           => '{}',
                                     'data'              => '{}',
-                                    'gates'             => '{"' . $gate['name'] . '.' . $gate['confidence_level'] . '": ' . ($gate['pass'] === true ? 'true' : 'false') . '}',
+                                    'gates'             => '{"' . $gate['name'] . '": "' . $gate['confidence_level'] . '"}',
                                     'flags'             => '{}',
-                                    'gate'              => '{"' . $gate['name'] . '.' . $gate['confidence_level'] . '"}',
-                                    'pass'              => ($gate['pass'] === true ? 'true' : 'false'),
+                                    'gate'              => '{"' . $gate['name'] . '"}',
+                                    'confidence_level'  => '"' . $gate['confidence_level'] . '"',
                                     'created_at'        => date('Y-m-d H:i:s', $created),
                                     'updated_at'        => date('Y-m-d H:i:s', $created)
                                 ]
