@@ -27,6 +27,12 @@ class Daily extends AbstractCommand {
         $this
             ->setName('cron:daily')
             ->setDescription('idOS Metrics - Daily')
+            ->addOption(
+                'logFile',
+                'l',
+                InputOption::VALUE_REQUIRED,
+                'Path to log file'
+            )
             ->addArgument(
                 'endpoint',
                 InputArgument::OPTIONAL,
@@ -43,7 +49,13 @@ class Daily extends AbstractCommand {
      * @return void
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
-        $logger = new Logger();
+        $logFile = $input->getOption('logFile') ?? 'php://stdout';
+        $logger  = new Logger('Daily');
+        $logger
+            ->pushProcessor(new ProcessIdProcessor())
+            ->pushProcessor(new UidProcessor())
+            ->pushHandler(new StreamHandler($logFile, Logger::DEBUG));
+
         $logger->debug('Initializing idOS Metrics Daily');
         $endpoint = $input->getArgument('endpoint');
 

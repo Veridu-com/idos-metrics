@@ -9,9 +9,8 @@ declare(strict_types = 1);
 namespace Cli\Command;
 
 use Cli\Handler;
-use Cli\Utils\Logger;
 use Monolog\Handler\StreamHandler;
-use Monolog\Logger as Monolog;
+use Monolog\Logger;
 use Monolog\Processor\ProcessIdProcessor;
 use Monolog\Processor\UidProcessor;
 use Symfony\Component\Console\Input\InputArgument;
@@ -37,6 +36,12 @@ class Daemon extends AbstractCommand {
                 'd',
                 InputOption::VALUE_NONE,
                 'Development mode'
+            )
+            ->addOption(
+                'healthCheck',
+                'h',
+                InputOption::VALUE_NONE,
+                'Enable queue health check'
             )
             ->addOption(
                 'logFile',
@@ -66,12 +71,11 @@ class Daemon extends AbstractCommand {
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
         $logFile = $input->getOption('logFile') ?? 'php://stdout';
-        $monolog = new Monolog('Metrics');
-        $monolog
+        $logger  = new Logger('Metrics');
+        $logger
             ->pushProcessor(new ProcessIdProcessor())
             ->pushProcessor(new UidProcessor())
-            ->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
-        $logger = new Logger($monolog);
+            ->pushHandler(new StreamHandler($logFile, Logger::DEBUG));
 
         $logger->debug('Initializing idOS Metrics Daemon');
 
@@ -85,10 +89,16 @@ class Daemon extends AbstractCommand {
             error_reporting(-1);
         }
 
+        // Health check
+        $healthCheck = ! empty($input->getOption('healthCheck'));
+        if ($healthCheck) {
+            $logger->debug('Enabling health check');
+        }
+
         // Gearman Worker function name setup
         $functionName = $input->getArgument('functionName');
         if ((empty($functionName)) || (! preg_match('/^[a-zA-Z0-9\._-]+$/', $functionName))) {
-            $functionName = 'idos-metrics';
+            $functionName = 'metrics';
         }
 
         // Server List setup
@@ -98,13 +108,14 @@ class Daemon extends AbstractCommand {
         foreach ($servers as $server) {
             if (strpos($server, ':') === false) {
                 $logger->debug(sprintf('Adding Gearman Server: %s', $server));
-                $gearman->addServer($server);
-            } else {
-                $server    = explode(':', $server);
-                $server[1] = intval($server[1]);
-                $logger->debug(sprintf('Adding Gearman Server: %s:%d', $server[0], $server[1]));
-                $gearman->addServer($server[0], $server[1]);
+                @$gearman->addServer($server);
+                continue;
             }
+
+            $server    = explode(':', $server);
+            $server[1] = intval($server[1]);
+            $logger->debug(sprintf('Adding Gearman Server: %s:%d', $server[0], $server[1]));
+            @$gearman->addServer($server[0], $server[1]);
         }
 
         // Run the worker in non-blocking mode
@@ -154,7 +165,7 @@ class Daemon extends AbstractCommand {
         $logger->debug('Entering Gearman Worker Loop');
 
         // Gearman's Loop
-        while ($gearman->work()
+        while (@$gearman->work()
                 || ($gearman->returnCode() == \GEARMAN_IO_WAIT)
                 || ($gearman->returnCode() == \GEARMAN_NO_JOBS)
                 || ($gearman->returnCode() == \GEARMAN_TIMEOUT)
@@ -179,12 +190,12 @@ class Daemon extends AbstractCommand {
                         exit;
                     }
 
-                    if (((time() - $bootTime) > 10) && ((time() - $lastJob) > 10)) {
+                    if (($healthCheck) && ((time() - $bootTime) > 10) && ((time() - $lastJob) > 10)) {
                         $logger->info(
                             'Inactivity detected, restarting',
                             [
                                 'runtime' => time() - $bootTime,
-                                'jobs' => $jobCount
+                                'jobs'    => $jobCount
                             ]
                         );
                         exit;
@@ -193,6 +204,10 @@ class Daemon extends AbstractCommand {
                     continue;
                 }
             }
+        }
+
+        if ($gearman->returnCode() != \GEARMAN_SUCCESS) {
+            $logger->error($gearman->error());
         }
 
         $logger->debug('Leaving Gearman Worker Loop', ['runtime' => time() - $bootTime, 'jobs' => $jobCount]);
