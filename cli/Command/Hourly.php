@@ -27,6 +27,12 @@ class Hourly extends AbstractCommand {
         $this
             ->setName('cron:hourly')
             ->setDescription('idOS Metrics - Hourly')
+            ->addOption(
+                'logFile',
+                'l',
+                InputOption::VALUE_REQUIRED,
+                'Path to log file'
+            )
             ->addArgument(
                 'endpoint',
                 InputArgument::OPTIONAL,
@@ -43,7 +49,13 @@ class Hourly extends AbstractCommand {
      * @return void
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
-        $logger = new Logger();
+        $logFile = $input->getOption('logFile') ?? 'php://stdout';
+        $logger  = new Logger('Hourly');
+        $logger
+            ->pushProcessor(new ProcessIdProcessor())
+            ->pushProcessor(new UidProcessor())
+            ->pushHandler(new StreamHandler($logFile, Logger::DEBUG));
+
         $logger->debug('Initializing idOS Metrics Hourly');
         $endpoint = $input->getArgument('endpoint');
 
