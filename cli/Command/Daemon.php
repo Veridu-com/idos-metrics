@@ -164,6 +164,8 @@ class Daemon extends AbstractCommand {
 
         $logger->debug('Entering Gearman Worker Loop');
 
+        $serverFailure = 0;
+
         // Gearman's Loop
         while (@$gearman->work()
                 || ($gearman->returnCode() == \GEARMAN_IO_WAIT)
@@ -171,12 +173,19 @@ class Daemon extends AbstractCommand {
                 || ($gearman->returnCode() == \GEARMAN_TIMEOUT)
         ) {
             if ($gearman->returnCode() == \GEARMAN_SUCCESS) {
+                $serverFailure = 0;
                 continue;
             }
 
             if (! @$gearman->wait()) {
                 if ($gearman->returnCode() == \GEARMAN_NO_ACTIVE_FDS) {
                     // No server connection, sleep before reconnect
+                    $serverFailure++;
+                    if ($serverFailure > 3) {
+                        $logger->warning('Invalid server state, restarting');
+                        exit;
+                    }
+
                     $logger->debug('No active server, sleep before retry');
                     sleep(5);
                     continue;
@@ -203,6 +212,8 @@ class Daemon extends AbstractCommand {
 
                     continue;
                 }
+
+                $serverFailure = 0;
             }
         }
 
