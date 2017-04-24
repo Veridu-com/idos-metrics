@@ -3,6 +3,8 @@
 .php_cs
 .idea
 composer.lock
+build/
+docs/
 phinx.yml
 phpunit.xml
 vendor/
